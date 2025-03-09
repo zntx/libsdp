@@ -6,7 +6,7 @@
 #include "include/sdp.h"
 #include "include/decoder.h"
 
-string seminarDescr = R"(v=0
+std::string seminarDescr = R"(v=0
 o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5
 s=SDP Seminar
 i=A Seminar on the session description protocol
@@ -29,7 +29,7 @@ a=rtcp-fb:100 nack pli
 a=fmtp:100 profile-level-id=42c01f;level-asymmetry-allowed=1
 )";
 
-string readmeDescr = R"(v=0
+std::string readmeDescr = R"(v=0
 o=alice 2890844526 2890844526 IN IP4 alice.example.org
 s=Example
 c=IN IP4 127.0.0.1
@@ -41,34 +41,12 @@ a=rtpmap:8 PCMA/8000
 )";
 
 
-pair<vector<string>, bool> split(string s, char sep, int n ) 
-{
-	vector<string> p;
-	auto pos = 0;
-	auto i = -1;
-	for( auto c :  s) {
-		i++;
-		if (c != sep) {
-			continue;
-		}
-		//p.push_back( s.substr(pos, i - pos +1));
-		pos = i + 1;
-		if (p.size() >= n-1) {
-			break;
-		}
-	}
-	p.push_back(s.substr(pos));
-	
-	return make_pair(p, p.size() == n);
-}
-
-
 
 int main() 
 {
 	
 
-    auto _err = ParseString(seminarDescr);
+    auto _err = sdp::ParseString(seminarDescr);
 	auto session = _err.first ;
 	auto error = _err.second ;
     if ( error != nullptr) {

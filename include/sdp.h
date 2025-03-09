@@ -10,11 +10,11 @@
 #include "attribute.h"
 #include "Slice.h"
 
-using namespace std;
+namespace sdp{  
+    using namespace std;
 
     // ContentType is the media type for an SDP session description.
     #define ContentType  "application/sdp"
-
 
     // Streaming modes.
     #define	SendRecv  "sendrecv"
@@ -25,8 +25,8 @@ using namespace std;
     // Origin represents an originator of the session.
     struct Origin  {
         string  Username;       
-        int64_t SessionID;      
-        int64_t SessionVersion; 
+        size_t SessionID;
+        size_t SessionVersion;
         string  Network ;       
         string  Type;           
         string  Address;        
@@ -36,14 +36,14 @@ using namespace std;
     struct Connection  {
         string 	Network;    
         string 	Type  ;     
-        string 	Address ;   
-        int 	TTL = 0 ;   
-        int 	AddressNum = 0;
+        string 	Address ;
+        size_t 	TTL = 0 ;
+        size_t 	AddressNum = 0;
     };
 
 
     // Bandwidth contains session or media bandwidth information.
-    typedef  map<string, int> Bandwidth;
+    typedef  map<string, size_t> Bandwidth;
 
     // TimeZone represents a time zones change information for a repeated session.
     struct TimeZone  {
@@ -74,21 +74,20 @@ using namespace std;
 
     // Format is a media format description represented by "rtpmap" attributes.
     struct Format  {
-        int64_t 		Payload ;  
-        string 	Name ;     
-        uint64_t 		ClockRate ;
-        uint64_t 		Channels ; 
-       vector<string>  Feedback;  // "rtcp-fb" attributes
-       vector<string>  Params;    // "fmtp" attributes
-
+        size_t 		Payload ;
+        string 	    Name ;
+        size_t 		ClockRate ;
+        size_t 		Channels ;
+        vector<string>  Feedback;  // "rtcp-fb" attributes
+        vector<string>  Params;    // "fmtp" attributes
     };
 
 
     // Media contains media description.
     struct Media  {
         string 			Type ;    
-        int 			Port ;   
-        int 			PortNum ; 
+        size_t 			Port ;
+        size_t 			PortNum ;
         string 			Proto ; 
 
         string 			Information; // Media Information ("i=")
@@ -101,12 +100,12 @@ using namespace std;
         vector<Format*>	formats; // Media Formats ("rtpmap")
 
         // Format returns format description by payload type.
-        Format* find_Format( int pt );
+        Format* find_Format(size_t pt );
     };
 
     // Session represents an SDP session description.
     struct Session  {
-        int               Version = 0;  // Protocol Version ("v=")
+        size_t            Version = 0;  // Protocol Version ("v=")
         Origin*           origin = nullptr;      // Origin ("o=")
         string            Name;        // Session Name ("s=")
         string            Information; // Session Information ("i=")
@@ -132,8 +131,6 @@ using namespace std;
     };
 
     // NegotiateMode negotiates streaming mode.
-	string NegotiateMode(string local, string remote );
-
-
-
+	string NegotiateMode(const string& local, string remote );
+}
 #endif

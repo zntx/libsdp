@@ -1,11 +1,10 @@
-#include <utility>
-#include <chrono>
+
 #include <string>
 #include <vector>
-#include <map>
 #include "sdp.h"
 #include "encoder.h"
 
+namespace sdp {	
 using namespace std;
 
 
@@ -18,7 +17,7 @@ using namespace std;
     //Bytes returns the encoded session description as buffer.
     Slice<char>  Session::Bytes()
     {
-        auto encoder = new(std::nothrow) Encoder{{nullptr, 0}, 0,0};
+        auto encoder = new(std::nothrow) Encoder{{nullptr, 0}, 0,false};
         //return encoder->session(this)->Bytes();
 		auto slice =  encoder->session(this)->Bytes();
 		
@@ -30,7 +29,7 @@ using namespace std;
 
 
     // Format returns format description by payload type.
-	Format* Media::find_Format( int pt )
+	Format* Media::find_Format(size_t pt )
     {
 		for (auto &&f : this->formats ){
 			if (f->Payload == pt) {
@@ -41,7 +40,7 @@ using namespace std;
 	}
 
     // NegotiateMode negotiates streaming mode.
-	string NegotiateMode(string local, string remote )  
+	string NegotiateMode(const string& local, string remote )
     {
 		if( local == SendRecv){
 			if( remote == RecvOnly)
@@ -80,3 +79,4 @@ using namespace std;
 	// 	return attrs[:n]
 	// }
     
+}

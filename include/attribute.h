@@ -2,37 +2,40 @@
 #include <vector>
 #include <string>
 
-using namespace std;
+namespace sdp{
 
-// Session or media attribute values for indication of a streaming mode.
-#define	ModeSendRecv "sendrecv"
-#define ModeRecvOnly "recvonly"
-#define ModeSendOnly "sendonly"
-#define ModeInactive "inactive"
+    using namespace std;
 
-// Attr represents session or media attribute.
-struct Attr  {
-    string Name;
-    string Value;
+    // Session or media attribute values for indication of a streaming mode.
+    #define	ModeSendRecv "sendrecv"
+    #define ModeRecvOnly "recvonly"
+    #define ModeSendOnly "sendonly"
+    #define ModeInactive "inactive"
 
-    
-    // NewAttr returns a=<attribute>:<value> attribute.
-    static Attr* NewAttr(string attr, string value );
+    // Attr represents session or media attribute.
+    struct Attr  {
+        string Name;
+        string Value;
 
-    // NewAttrFlag returns a=<flag> attribute.
-    static Attr* NewAttrFlag(string flag );
+        
+        // NewAttr returns a=<attribute>:<value> attribute.
+        static Attr* NewAttr(string attr, string value );
 
-    string String();
-};
+        // NewAttrFlag returns a=<flag> attribute.
+        static Attr* NewAttrFlag(string flag );
 
-struct Attributes {
-    vector<Attr*> attr;
+        string String() const;
+    };
 
-    Attributes();
-    ~Attributes();
-    // Has returns presence of attribute by name.
-    bool Has(string name);
+    struct Attributes {
+        vector<Attr*> attr;
 
-    // Get returns first attribute value by name.
-    string Get(string name);
-};
+        Attributes() = default;
+        ~Attributes() = default;
+        // Has returns presence of attribute by name.
+        bool Has(const string& name);
+
+        // Get returns first attribute value by name.
+        string Get(const string& name);
+    };
+}

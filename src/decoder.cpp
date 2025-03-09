@@ -2,34 +2,37 @@
 #include <utility>
 #include <chrono>
 #include <string>
-#include <errno.h>
 #include <algorithm>
 #include "sdp.h"
 #include "decoder.h"
 
-using namespace std;
+namespace sdp{
+    using namespace std;
 
 
-#define maxLineSize 1024
+    #define maxLineSize 1024
 
 
-#define errLineTooLong ErrDecode::New(string("sdp: line is too long"))
-#define errUnexpectedField    ErrDecode::New(string("unexpected field"))
-#define errFormat      ErrDecode::New(string("format Error"))
+    #define errLineTooLong     ErrDecode::New(string("sdp: line is too long"))
+    //#define errUnexpectedField ErrDecode::New(string("unexpected field"))
+    //#define errFormat          ErrDecode::New(string("format Error"))
+
+    ErrDecode errUnexpectedField{ 0, 0, string("unexpected field")};
+    ErrDecode errFormat{ 0, 0, string("format Error")};
+    ErrDecode errCode{ 0, 0, string()};
 
 
-
-    string ErrDecode::to_string() 
+    string ErrDecode::to_string() const
 	{
         return string("sdp: ") + std::to_string(err)  + string(" on line") + std::to_string(this->line) +  this->text;
     }
 
-	ErrDecode* ErrDecode::New( string _text ) 
-	{
-		return new ErrDecode{ 1, 1, _text};
-	}
+//	ErrDecode* ErrDecode::New( string _text )
+//	{
+//		return new ErrDecode{ 1, 1, std::move(_text)};
+//	}
 
-	StringReader::StringReader( string _s) : s(_s) {
+	StringReader::StringReader( string _s) : s(std::move(_s)) {
 
 	}
 
@@ -38,7 +41,10 @@ using namespace std;
         auto s = this->s;
         auto n = this->s.size();
         if( n == 0 ){
-            return make_pair(string(""), new ErrDecode{EOF, 0, string("empty")});
+            errCode.err = EOF;
+            errCode.line = 0;
+            errCode.text =  "empty";
+            return make_pair(string(""), &errCode);
         }
         auto i = 0;
         for( const char& ch : s ){
@@ -88,20 +94,21 @@ using namespace std;
 			auto s_err = this->r->ReadLine();
 			auto s = s_err.first;
 			auto err = s_err.second;
-			if( err != 0 ) {
-				if (err != nullptr && err->err == EOF && sess->origin != nullptr) {
+			if( err != nullptr ) {
+				if( err->err == EOF && sess->origin != nullptr) {
 					break;
 				}
 				return make_pair(nullptr, err);
 			}
 
-			std::cout << line << " " << s << std::endl;
-
 			if (s.size() == 0 && sess->origin != nullptr) {
 				break;
 			}
 			if (s.size() < 2 || s[1] != '=' ){
-				return make_pair(nullptr, new ErrDecode{3, line, s});
+                errCode.err = 3;
+                errCode.line = line;
+                errCode.text = s;
+				return make_pair(nullptr, &errCode);
 			}
 
 			auto f = s[0];
@@ -113,7 +120,7 @@ using namespace std;
 			if( f == 'm' ){
 				media = new(std::nothrow) Media;
 				err = this->media(media, f, v);
-				if( err == 0 ){
+				if( err == nullptr ){
 					sess->media.push_back(media);
 				}
 			} 
@@ -133,7 +140,7 @@ using namespace std;
 		return make_pair(sess, nullptr);
 	}
 
-	Error Decoder::session( Session* s,  char f,  string v)  
+	Error Decoder::session( Session* s,  char f,  const string& v)
 	{
 		Error err = nullptr ;
 		
@@ -144,7 +151,7 @@ using namespace std;
 		}
 		else if( f == 'o'){
 			if (s->origin != nullptr ){
-				return errUnexpectedField;
+				return &errUnexpectedField;
 			}
 			auto origin_err = this->origin(v);
 			s->origin = origin_err.first;
@@ -168,7 +175,7 @@ using namespace std;
 		else if( f == 'c'){
 			if (s->connection != nullptr) {
 				std::cout << "err" << " "   << std::endl;
-				return errUnexpectedField;
+				return &errUnexpectedField;
 			}
 			auto connection_err = this->connection(v);
 			s->connection = connection_err.first;
@@ -211,13 +218,13 @@ using namespace std;
 		}
 		else {
 
-			return errUnexpectedField;
+			return &errUnexpectedField;
 		}
 
 		return err;
 	}
 
-	Error Decoder::media(Media* m, char f, string v)
+	Error Decoder::media(Media* m, char f, const string& v)
 	{
 		Error err = nullptr;
 		 
@@ -254,7 +261,7 @@ using namespace std;
 				m->attributes.attr.push_back (  a);
 		}
 		else { 
-			return errUnexpectedField;
+			return &errUnexpectedField;
 		}
 		return err;
 	}
@@ -265,7 +272,7 @@ using namespace std;
 		auto p = p_ok.first;
 		auto ok = p_ok.second;
 		if (!ok) {
-			return errFormat;
+			return &errFormat;
 		}
 
 		auto pt_err = this->int64(p[0]);
@@ -291,21 +298,21 @@ using namespace std;
 		return err;
 	}
 
-	Error Decoder::rtpmap(Format* f,  string v) 
+	Error Decoder::rtpmap(Format* f,  const string& v)
 	{
 		auto p_ok = this->split(v, '/', 3);
 		auto p = p_ok.first;
 		auto ok = p_ok.second;
 		if(p.size() < 2) {
-			return errFormat;
+			return &errFormat;
 		}
 
 		f->Name = p[0];
 		Error err ;
 		if (ok) {
-			auto hannels_err = this->int64(p[2]);
-			f->Channels = hannels_err.first;
-				    err = hannels_err.second;
+			auto channels_err = this->int64(p[2]);
+			f->Channels = channels_err.first;
+				    err = channels_err.second;
 			if( err != nullptr ){
 				return err;
 			}
@@ -320,13 +327,13 @@ using namespace std;
 		return nullptr;
 	}
 
-	Error Decoder::proto(Media* m, string v)
+	Error Decoder::proto(Media* m, const string& v)
 	{
 		auto p_ok = this->fields(v, 4);
 		auto p = p_ok.first;
 		auto ok = p_ok.second;
 		if (!ok ){
-			return errFormat;
+			return &errFormat;
 		}
 
 		auto formats = p[3];
@@ -369,13 +376,13 @@ using namespace std;
 		return nullptr;
 	}
 
-	pair<Origin*, Error> Decoder::origin(string v)
+	pair<Origin*, Error> Decoder::origin(const string& v)
 	{
 		auto p_ok = this->fields(v, 6);
 		auto p = p_ok.first;
 		auto ok = p_ok.second;
 		if( !ok ){
-			return make_pair(nullptr, errFormat);
+			return make_pair(nullptr, &errFormat);
 		}
 		auto o = new(nothrow) Origin;
         o->Username = p[0];
@@ -400,13 +407,13 @@ using namespace std;
 		return make_pair(o, nullptr);
 	}
 
-	pair<Connection*, Error> Decoder::connection(string v)
+	pair<Connection*, Error> Decoder::connection(const string& v)
 	{
 		auto p_ok = this->fields(v, 3);
 		auto p = p_ok.first;
 		auto ok = p_ok.second;
 		if( !ok ){
-			return make_pair(nullptr, errFormat);
+			return make_pair(nullptr, &errFormat);
 		}
 
 		auto c = new(nothrow) Connection;
@@ -442,13 +449,13 @@ using namespace std;
 		return make_pair(c, nullptr);
 	}
 
-	Error Decoder::bandwidth(Bandwidth& b, string v)
+	Error Decoder::bandwidth(Bandwidth& b, const string& v)
 	{
 		auto p_ok = this->split(v, ':', 2);
 		auto p = p_ok.first;
 		auto ok = p_ok.second;
 		if (!ok ){
-			return errFormat;
+			return &errFormat;
 		}
 
 		auto val_err = this->int64(p[1]);
@@ -461,7 +468,7 @@ using namespace std;
 		return nullptr;
 	}
 
-	pair<vector<TimeZone*>, Error> Decoder::timezone(string v)
+	pair<vector<TimeZone*>, Error> Decoder::timezone(const string& v)
 	{
 		auto p_ok = this->fields(v, 40);
 		auto p = p_ok.first;
@@ -493,7 +500,7 @@ using namespace std;
 		return make_pair(zone, nullptr);
 	}
 
-	Key* Decoder::key(string v)
+	Key* Decoder::key(const string& v)
 	{
 		auto p_ok = this->split(v, ':', 2); 
 		auto p = p_ok.first;
@@ -504,7 +511,7 @@ using namespace std;
 		return new Key{v, ""};
 	}
 
-	Attr* Decoder::attr( string v )
+	Attr* Decoder::attr( const string& v )
 	{
 		auto p_ok = this->split(v, ':', 2);
 		auto p = p_ok.first;
@@ -514,13 +521,13 @@ using namespace std;
 		return new Attr{v, ""};
 	}
 
-	pair<Timing*, Error> Decoder::timing(string v)
+	pair<Timing*, Error> Decoder::timing(const string& v)
 	{
 		auto p_ok = this->fields(v, 2);
 		auto p = p_ok.first;
 		auto ok = p_ok.second;
 		if( !ok ){
-			return make_pair(nullptr, errFormat);
+			return make_pair(nullptr, &errFormat);
 		}
 
 		std::cout << "err 1111" << p[0]   << std::endl;
@@ -542,15 +549,15 @@ using namespace std;
 		return make_pair( new Timing{start, stop}, nullptr);
 	}
 
-	pair<Repeat*, Error> Decoder::repeat(string v) 
+	pair<Repeat*, Error> Decoder::repeat(const string& v)
 	{
 		auto p_ = this->fields(v, maxLineSize);
 		auto p = p_.first;
 		if ( p.size()< 2) {
-			return make_pair(nullptr, errFormat);
+			return make_pair(nullptr, &errFormat);
 		}
 		auto r = new(std::nothrow) Repeat;
-		Error err ;
+		Error err = nullptr;
 		
 		auto interval_err = this->duration(p[0]);
 		r->Interval = interval_err.first;
@@ -569,7 +576,7 @@ using namespace std;
 		for(auto i = 2 ; i< p.size(); i++) {
 			auto off_err = this->duration(p[i]);
 			auto off = off_err.first;
-			auto err = off_err.second;
+                                  err = off_err.second;
 			if (err != nullptr ){
 				return make_pair(nullptr, err);
 			}
@@ -580,11 +587,10 @@ using namespace std;
 
 	pair<chrono::time_point<chrono::system_clock>, Error> Decoder::time(string v) 
 	{
-		auto sec_err = this->int64(v);
+		auto sec_err = this->int64(std::move(v));
 		auto sec = sec_err.first;
 		auto err = sec_err.second;
 		if (err != nullptr || sec == 0 ){
-			std::cout << "err 1111" << err->to_string()  << std::endl;
 			return make_pair(chrono::system_clock::now(), err);
 		}
 
@@ -596,7 +602,7 @@ using namespace std;
 	{
 		auto m =  1;
 		auto n = v.size() - 1;
-		if ( n >= 0 ){
+		if ( !v.empty() ){
 			switch (v[n]) {
 			case 'd':
 				m = 86400;
@@ -626,7 +632,7 @@ using namespace std;
 		return make_pair(chrono::seconds( sec * m ), nullptr);
 	}
 
-	pair<int64_t, Error> Decoder::int64(string v) 
+	pair<size_t, Error> Decoder::int64(const string& v)
 	{
 		// if ( !v.empty() && std::all_of(v.begin(), v.end(), ::isdigit))
 		// 	return make_pair( std::stoull(v), nullptr);
@@ -634,23 +640,27 @@ using namespace std;
 		// 	return make_pair( 0, ErrDecode::New("is not number"));
 
 		try {
-			int64_t val = std::stoll(v);
+			int64_t val = std::stoul(v);
 			return make_pair( val, nullptr);;
 		} 
 		catch (const std::invalid_argument&) {
-			return make_pair( 0, ErrDecode::New("is not number"));
+
+            errCode.text = "is not number";
+			return make_pair( 0, &errCode);
 		} 
 		catch (const std::out_of_range&) {
-			return make_pair( 0, ErrDecode::New("is not number"));
+
+            errCode.text = "is not number";
+			return make_pair( 0, &errCode);
 		}
 	}
 
-	pair<vector<string>, bool> Decoder::fields(string s, int n)
+	pair<vector<string>, bool> Decoder::fields(const string& s, int n)
 	{
-		return this->split(std::move(s), ' ', n);
+		return this->split(s, ' ', n);
 	}
 
-	pair<vector<string>, bool> Decoder::split(string s, char sep, int n ) 
+	pair<vector<string>, bool> Decoder::split(const string& s, char sep, int n )
 	{
 		//vector<string> p(this->p);
 		vector<string> p;
@@ -678,25 +688,25 @@ using namespace std;
 
 
 
+    // NewDecoder returns new decoder that reads from r.
+    // Decoder* NewDecoder(r io.Reader) *Decoder {
+    // 	return &Decoder{r: &reader{b: bufio.NewReaderSize(r, maxLineSize)}}
+    // }
 
-// NewDecoder returns new decoder that reads from r.
-// Decoder* NewDecoder(r io.Reader) *Decoder {
-// 	return &Decoder{r: &reader{b: bufio.NewReaderSize(r, maxLineSize)}}
-// }
+    // NewDecoderString returns new decoder that reads from s.
+    Decoder* NewDecoderString(string s) {
+        return new Decoder{ new(nothrow) StringReader(std::move(s))};
+    }
 
-// NewDecoderString returns new decoder that reads from s.
-Decoder* NewDecoderString(string s) {
-	return new Decoder{ new(nothrow) StringReader(s)};
-}
+    // ParseString reads session description from the string.
+    pair<Session*, Error>  ParseString( string s) {
+        Decoder decode ={ new StringReader(std::move(s))};
+        return decode.tryDecode();
 
-// ParseString reads session description from the string.
-pair<Session*, Error>  ParseString( string s) {
-	Decoder decode ={ new StringReader(s)};
-	return decode.tryDecode();
-	
-}
+    }
 
-// Parse reads session description from the buffer.
-pair<Session*, Error> Parse( char* b) {
-	return ParseString(string(b));
+    // Parse reads session description from the buffer.
+    pair<Session*, Error> Parse( char* b) {
+        return ParseString(string(b));
+    }
 }

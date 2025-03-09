@@ -2,12 +2,11 @@
 #include <chrono>
 #include <string>
 #include <vector>
-#include <map>
 #include "sdp.h"
 #include "decoder.h"
 #include "encoder.h"
 
-
+namespace sdp{
 
     // Encode encodes the session description.
     Error Encoder::try_Encode(Session* s) 
@@ -26,7 +25,8 @@
     // Reset resets encoder state to be empty.
     void Encoder::Reset() 
     {
-        this->pos, this->newline = 0, false;
+        this->pos = 0;
+        this->newline = false;
     }
 
     Encoder* Encoder::session(Session* s)  
@@ -39,12 +39,12 @@
         std::cout << "Encoder::session() slice.to_string() = " << this->buf.subslice(0, this->pos).to_string() << std::endl;
 
         this->add('s')->str(s->Name);
-        if (s->Information != "") {
+        if (!s->Information.empty()) {
             this->add('i')->str(s->Information);
         }
         std::cout << "Encoder::session() slice.to_string() = " << this->buf.to_string() << std::endl;
 
-        if (s->URI != "") {
+        if (!s->URI.empty()) {
             this->add('u')->str(s->URI);
         }
         std::cout << "Encoder::session() slice.to_string() = " << this->buf.to_string() << std::endl;
@@ -69,7 +69,7 @@
         }
         std::cout << "Encoder::session() slice.to_string() = " << this->buf.to_string() << std::endl;
 
-        if ( s->timeZone.size() > 0) {
+        if ( !s->timeZone.empty()) {
             this->add('z')->timezone(s->timeZone);
         }
         std::cout << "Encoder::session() slice.to_string() = " << this->buf.to_string() << std::endl;
@@ -85,7 +85,7 @@
         }
         std::cout << "Encoder::session() slice.to_string() = " << this->buf.to_string() << std::endl;
 
-        if( s->Mode != "") {
+        if( !s->Mode.empty()) {
             this->add('a')->str(s->Mode);
         }
 
@@ -114,10 +114,10 @@
         for (auto &&it : m->formats) {
             this->sp()->set_int( it->Payload);
         }
-        if (m->formats.size() == 0) {
+        if (m->formats.empty()) {
             this->sp()->set_char('*');
         }
-        if (m->Information != "") {
+        if (!m->Information.empty()) {
             this->add('i')->str(m->Information);
         }
         for (  auto &&it : m->connection ) {
@@ -132,7 +132,7 @@
         for (auto &&it : m->formats) {
             this->format(it);
         }
-        if( m->Mode != "") {
+        if( !m->Mode.empty()) {
             this->add('a')->str(m->Mode);
         }
         for ( auto &&it : m->attributes.attr ) {
@@ -144,7 +144,7 @@
     Encoder* Encoder::format(Format* f)
     {
         auto p = f->Payload;
-        if (f->Name != "") {
+        if (!f->Name.empty()) {
             this->add('a')->str("rtpmap:")->set_int(p)->sp()->str(f->Name)->set_char('/')->set_int(f->ClockRate);
             if (f->Channels > 0) {
                 this->set_char('/')->set_int( f->Channels);
@@ -161,7 +161,7 @@
 
     Encoder* Encoder::attr(Attr* a)
     {
-        if (a->Value == "") {
+        if (a->Value.empty()) {
             return this->str(a->Name);
         }
         return this->str(a->Name)->set_char(':')->str(a->Value);
@@ -224,14 +224,14 @@
             return this->set_int(v);
     }
 
-    Encoder* Encoder::bandwidth(string m, int v)
+    Encoder* Encoder::bandwidth(const string& m, int v)
     {
         return this->str(m)->set_char(':')->set_int( v );
     }
 
     Encoder* Encoder::key(Key* k) 
     {
-        if (k->Value == "") {
+        if (k->Value.empty()) {
             return this->str(k->Method);
         }
         return this->str(k->Method)->set_char(':')->str(k->Value);
@@ -269,9 +269,9 @@
         return v;
     }
 
-    Encoder* Encoder::str(string v) 
+    Encoder* Encoder::str(const string& v)
     {
-        if (v == "") {
+        if (v.empty()) {
             return this->set_char('-');
         }
         //copy(this->next(len(v)), v);
@@ -297,7 +297,7 @@
     //     return e
     // }
 
-    Encoder* Encoder::fields( string item1, string item2, string item3)
+    Encoder* Encoder::fields( const string& item1, const string& item2, const string& item3)
     {
         this->next( item1.size() ).copy(item1.c_str(), item1.size());
         this->next( 1 ).set(0,  ' ');
@@ -354,7 +354,7 @@
         return this;
     }
 
-    Slice<char> Encoder::next(int n)
+    Slice<char> Encoder::next(int64_t n)
     {
         auto p = this->pos + n;
         if ( this->buf.size() < p) {
@@ -404,3 +404,5 @@
     {
         return this->Bytes().to_string();
     }
+
+}
