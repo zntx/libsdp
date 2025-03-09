@@ -44,16 +44,17 @@ a=rtpmap:8 PCMA/8000
 
 int main() 
 {
-	
-
-    auto _err = sdp::ParseString(seminarDescr);
-	auto session = _err.first ;
-	auto error = _err.second ;
+    auto sess = sdp::ParseString(seminarDescr);
+	auto session = sess.first ;
+	auto error = sess.second ;
     if ( error != nullptr) {
         std::cout << "  " << error->to_string() << std::endl;
     }
-	else
-	std::cout << " OK " << std::endl;
+	else {
+        std::cout << " OK " << std::endl;
+        std::cout << "  " << sess.first->media[0]->formats[0]->Name << std::endl;
+
+    }
 
 	//std::cout << " -----" << session->String() << std::endl;
 	session->String();

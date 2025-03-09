@@ -22,7 +22,7 @@ go get github.com/pixelbender/go-sdp/sdp
 
 ```c
 int main() {
-	sess, err := sdp::ParseString(R"(v=0
+	auto sess = sdp::ParseString(R"(v=0
 o=alice 2890844526 2890844526 IN IP4 alice.example.org
 s=Example
 c=IN IP4 127.0.0.1
@@ -32,10 +32,12 @@ m=audio 10000 RTP/AVP 0 8
 a=rtpmap:0 PCMU/8000
 a=rtpmap:8 PCMA/8000)")
 
-	if err != nil {
-		fmt.Println(err)
+	if(sess.second == nullptr){
+		std::cout << "  " << sess.second->to_string() << std::endl;
 	} else {
-		fmt.Println(sess.Media[0].Format[0].Name) // prints PCMU
+		// prints PCMU
+	    std::cout << "  " << sess.first->media[0]->formats[0]->Name << std::endl;
+		delete sess.first;
 	}
 }
 ```

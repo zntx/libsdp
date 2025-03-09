@@ -12,7 +12,6 @@ namespace sdp{
 
     #define maxLineSize 1024
 
-
     #define errLineTooLong     ErrDecode::New(string("sdp: line is too long"))
     //#define errUnexpectedField ErrDecode::New(string("unexpected field"))
     //#define errFormat          ErrDecode::New(string("format Error"))
@@ -700,7 +699,7 @@ namespace sdp{
 
     // ParseString reads session description from the string.
     pair<Session*, Error>  ParseString( string s) {
-        Decoder decode ={ new StringReader(std::move(s))};
+        Decoder decode = { new StringReader(std::move(s))};
         return decode.tryDecode();
 
     }
